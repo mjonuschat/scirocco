@@ -260,10 +260,21 @@ main() {
   resolve_config
   local action="${1:-install}"
   case "${action}" in
-    # The install/uninstall sequences are wired in Task 8, once every step function
-    # is real. Until then the entrypoint REFUSES to run rather than exit 0 having
-    # done nothing — no commit ships an install.sh that silently no-ops.
-    install|uninstall) die "install.sh is still being built; '${action}' is not wired yet." ;;
+    install)
+      preflight_checks
+      check_download
+      link_extension
+      add_updater
+      restart_klipper
+      log "[DONE] heater_chamber installed."
+      ;;
+    uninstall)
+      resolve_klipper_path   # install resolves KLIPPER_PATH in preflight; uninstall needs it too
+      unlink_extension
+      remove_updater
+      restart_klipper
+      log "[DONE] heater_chamber uninstalled."
+      ;;
     *) die "usage: install.sh [install|uninstall]" ;;
   esac
 }
