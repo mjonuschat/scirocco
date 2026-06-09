@@ -65,11 +65,34 @@ remove_safe_link() {  # status: 0=removed  1=absent  2=refused(real)  3=rm-faile
     real)    return 2 ;;
   esac
 }
-json_get() { :; }
+json_get() {  # read JSON on stdin, walk the given keys, print a string value or empty
+  "${JSON_PY}" -c '
+import sys, json
+try:
+    cur = json.load(sys.stdin)
+except Exception:
+    print(""); sys.exit(0)
+for key in sys.argv[1:]:
+    if isinstance(cur, dict) and key in cur:
+        cur = cur[key]
+    else:
+        print(""); sys.exit(0)
+print(cur if isinstance(cur, str) else "")
+' "$@" 2>/dev/null || true
+}
 fetch_printer_info() { :; }
 resolve_klipper_path() { :; }
 preflight_checks() { :; }
-require_kalico() { :; }
+require_kalico() {  # hard gate: target must support dual_loop_pid
+  local heaters="${KLIPPER_PATH}/klippy/extras/heaters.py"
+  if [ -f "${heaters}" ] && grep -q "dual_loop_pid" "${heaters}"; then
+    return 0
+  fi
+  if [ "${KALICO_APP:-}" = "Kalico" ] || [ -f "${KLIPPER_PATH}/klippy/extras/danger_options.py" ]; then
+    die "Your Kalico is too old — it has no dual_loop_pid control. Update Kalico."
+  fi
+  die "heater_chamber requires Kalico; this looks like mainline Klipper."
+}
 check_python_version() { :; }
 check_download() { :; }
 link_extension() { :; }
