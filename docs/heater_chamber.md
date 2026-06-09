@@ -47,12 +47,13 @@ firmware shutdown/error.
 ```ini
 [heater_chamber]
 heater_pin: PD12
-heater_sensor_type: NTC 100K beta 3950
+#heater_max_power: 1.0
+heater_sensor_type: Generic 3950
 heater_sensor_pin: PF4
 heater_min_temp: 0
 heater_max_temp: 150
 
-chamber_sensor_type: NTC 100K beta 3950
+chamber_sensor_type: Generic 3950
 chamber_sensor_pin: PF5
 chamber_min_temp: 0
 chamber_max_temp: 80
