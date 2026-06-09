@@ -199,3 +199,13 @@ class FakePrinter:
 
     def register_event_handler(self, event: str, callback: Callable[[], None]) -> None:
         self.event_handlers.setdefault(event, []).append(callback)
+
+
+class FakeGCmd:
+    def __init__(self, params: Mapping[str, Any] | None = None) -> None:
+        self.params = dict(params or {})
+
+    def get_float(self, name: str, default: Any = None, **_: Any) -> float | None:
+        if name not in self.params:
+            return default
+        return float(self.params[name])

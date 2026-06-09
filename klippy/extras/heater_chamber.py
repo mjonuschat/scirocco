@@ -294,6 +294,10 @@ def _target_from_result(result: Any) -> float:
     return 0.0
 
 
+def _format_temperature(value: float) -> str:
+    return f"{value:g}"
+
+
 class PrinterHeaterChamber:
     def __init__(self, config: Any) -> None:
         self.config = config
@@ -319,6 +323,10 @@ class PrinterHeaterChamber:
         self._fan_timer = None
 
         self.printer.register_event_handler("klippy:ready", self._handle_ready)
+        self.gcode = self.printer.lookup_object("gcode")
+        if self.is_default:
+            self.gcode.register_command("M141", self.cmd_M141)
+            self.gcode.register_command("M191", self.cmd_M191)
 
     def _create_element_sensor(self, sensor_cls: Any) -> Any:
         sensor_object_name = f"temperature_sensor {self.element_sensor_name}"
@@ -355,6 +363,49 @@ class PrinterHeaterChamber:
         fan_speed = self.fan_speed if target > 0.0 or element_temp >= self.fan_heater_temp else 0.0
         self.fan.set_speed(eventtime, fan_speed)
         return eventtime + FAN_UPDATE_TIME
+
+    def cmd_M141(self, gcmd: Any) -> None:
+        target = gcmd.get_float("S", None)
+        if target is None:
+            return
+        self._set_temperature(target)
+
+    def cmd_M191(self, gcmd: Any) -> None:
+        target = gcmd.get_float("R", None)
+        wait_for_cooling = target is not None
+        if target is None:
+            target = gcmd.get_float("S", None)
+        if target is None:
+            return
+
+        self._set_temperature(target)
+        current = self._current_chamber_temperature()
+        if current < target:
+            self._temperature_wait(minimum=target)
+        elif wait_for_cooling and current > target:
+            self._temperature_wait(maximum=target)
+
+    def _set_temperature(self, target: float) -> None:
+        self.pheaters.set_temperature(self.heater, target, wait=False)
+
+    def _current_chamber_temperature(self) -> float:
+        reactor = self.printer.get_reactor()
+        return _temperature_from_result(self.heater.get_temp(reactor.monotonic()))
+
+    def _temperature_wait(
+        self,
+        minimum: float | None = None,
+        maximum: float | None = None,
+    ) -> None:
+        if minimum is not None:
+            self.gcode.run_script_from_command(
+                f"TEMPERATURE_WAIT SENSOR={self.name} MINIMUM={_format_temperature(minimum)}"
+            )
+            return
+        if maximum is not None:
+            self.gcode.run_script_from_command(
+                f"TEMPERATURE_WAIT SENSOR={self.name} MAXIMUM={_format_temperature(maximum)}"
+            )
 
 
 def load_config(config: Any) -> PrinterHeaterChamber:
