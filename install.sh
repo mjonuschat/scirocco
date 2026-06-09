@@ -94,7 +94,19 @@ require_kalico() {  # hard gate: target must support dual_loop_pid
   die "heater_chamber requires Kalico; this looks like mainline Klipper."
 }
 check_python_version() { :; }
-check_download() { :; }
+check_download() {
+  if [ -f "${HEATER_CHAMBER_PATH}/heater_chamber/__init__.py" ]; then
+    log "[DOWNLOAD] Using existing checkout at ${HEATER_CHAMBER_PATH}"
+    return 0
+  fi
+  if [ ! -e "${HEATER_CHAMBER_PATH}" ] || [ -z "$(ls -A "${HEATER_CHAMBER_PATH}" 2>/dev/null)" ]; then
+    log "[DOWNLOAD] Cloning ${REPO_URL} into ${HEATER_CHAMBER_PATH}"
+    git clone "${REPO_URL}" "${HEATER_CHAMBER_PATH}" || die "git clone of ${REPO_URL} failed"
+    chmod +x "${HEATER_CHAMBER_PATH}/install.sh" 2>/dev/null || true
+    return 0
+  fi
+  die "${HEATER_CHAMBER_PATH} exists but is not a heater_chamber checkout; move it aside or set HEATER_CHAMBER_PATH"
+}
 link_extension() { :; }
 unlink_extension() { :; }
 add_updater() { :; }
