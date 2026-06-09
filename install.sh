@@ -80,9 +80,47 @@ for key in sys.argv[1:]:
 print(cur if isinstance(cur, str) else "")
 ' "$@" 2>/dev/null || true
 }
-fetch_printer_info() { :; }
-resolve_klipper_path() { :; }
-preflight_checks() { :; }
+fetch_printer_info() {
+  curl -fsS --max-time 8 "${MOONRAKER_HOST}/printer/info" 2>/dev/null || true
+}
+
+resolve_klipper_path() {  # uninstall path: discover from Moonraker if unset, else default. Never gates.
+  if [ -z "${KLIPPER_PATH:-}" ]; then
+    local kp; kp="$(fetch_printer_info | json_get result klipper_path)"
+    [ -n "${kp}" ] && KLIPPER_PATH="${kp}"
+  fi
+  : "${KLIPPER_PATH:=${HOME}/klipper}"
+}
+
+preflight_checks() {
+  # INSTALL_UID is overridable in tests; bash makes EUID readonly so it can't be faked.
+  [ "${INSTALL_UID:-$(id -u)}" -eq 0 ] && die "Do not run this script as root."
+
+  if ! systemctl list-unit-files klipper.service 2>/dev/null | grep -q 'klipper.service'; then
+    die "Klipper service not found — install Klipper/Kalico first."
+  fi
+
+  local info
+  info="$(fetch_printer_info)"
+  KALICO_APP="$(printf '%s' "${info}" | json_get result app)"
+  local discovered_klipper discovered_py
+  discovered_klipper="$(printf '%s' "${info}" | json_get result klipper_path)"
+  discovered_py="$(printf '%s' "${info}" | json_get result python_path)"
+
+  if [ -z "${KLIPPER_PATH:-}" ] && [ -n "${discovered_klipper}" ]; then
+    KLIPPER_PATH="${discovered_klipper}"
+  fi
+  : "${KLIPPER_PATH:=${HOME}/klipper}"
+
+  local py="${discovered_py:-${HOME}/klippy-env/bin/python}"
+  check_python_version "${py}"
+
+  require_kalico
+
+  KLIPPER_PLUGINS_PATH="${KLIPPER_PATH}/klippy/extras"
+  [ -d "${KLIPPER_PATH}/klippy/plugins" ] && KLIPPER_PLUGINS_PATH="${KLIPPER_PATH}/klippy/plugins"
+  log "[PRE-CHECK] Target: ${KLIPPER_PATH} (link dir: ${KLIPPER_PLUGINS_PATH})"
+}
 require_kalico() {  # hard gate: target must support dual_loop_pid
   local heaters="${KLIPPER_PATH}/klippy/extras/heaters.py"
   if [ -f "${heaters}" ] && grep -q "dual_loop_pid" "${heaters}"; then
@@ -93,7 +131,16 @@ require_kalico() {  # hard gate: target must support dual_loop_pid
   fi
   die "heater_chamber requires Kalico; this looks like mainline Klipper."
 }
-check_python_version() { :; }
+check_python_version() {  # $1 = interpreter path; require >= 3.11
+  local py=$1 code
+  code="$("${py}" -c 'import sys; print(sys.version_info[0]*100+sys.version_info[1])' 2>/dev/null || true)"
+  case "${code}" in
+    ''|*[!0-9]*) die "Could not determine Python version for ${py}" ;;
+  esac
+  if [ "${code}" -lt 311 ]; then
+    die "heater_chamber needs Python >= 3.11, but ${py} reports $((code/100)).$((code%100))."
+  fi
+}
 check_download() {
   if [ -f "${HEATER_CHAMBER_PATH}/heater_chamber/__init__.py" ]; then
     log "[DOWNLOAD] Using existing checkout at ${HEATER_CHAMBER_PATH}"
@@ -200,7 +247,14 @@ check_no_active_print() {  # 0 = safe to restart, 1 = skip (active or unknown)
     *) return 1 ;;  # printing, paused, unknown, or empty -> skip
   esac
 }
-restart_klipper() { :; }
+restart_klipper() {
+  if check_no_active_print; then
+    log "[POST-INSTALL] Restarting Klipper..."
+    sudo systemctl restart klipper
+  else
+    log "[NOTICE] A print job is active (or print state could not be confirmed). Skipping Klipper restart. Run 'sudo systemctl restart klipper' once the printer is idle to activate the change."
+  fi
+}
 
 main() {
   resolve_config
