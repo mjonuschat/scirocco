@@ -5,12 +5,12 @@ from typing import Any
 from .config_proxy import ConfigProxy
 
 try:
-    from .. import fan
+    from klippy.extras import fan
 except ImportError:
     fan = None  # type: ignore[assignment]
 
 try:
-    from ..temperature_sensor import PrinterSensorGeneric
+    from klippy.extras.temperature_sensor import PrinterSensorGeneric
 except ImportError:
     PrinterSensorGeneric = None  # type: ignore[assignment]
 

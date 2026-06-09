@@ -1,15 +1,15 @@
 # Heater Chamber
 
-`heater_chamber` is a Kalico extras module for an actively heated print chamber.
+`heater_chamber` is a Kalico plugin for an actively heated print chamber.
 One config section owns the element sensor, chamber sensor, heater, and
 circulation fan.
 
 ## Install
 
-Symlink the package directory into Kalico/Klipper extras:
+Symlink the package directory into Kalico plugins:
 
 ```bash
-ln -s /path/to/heater_chamber/heater_chamber /path/to/kalico/klippy/extras/heater_chamber
+ln -s /path/to/heater_chamber/heater_chamber /path/to/kalico/klippy/plugins/heater_chamber
 ```
 
 ## Instances

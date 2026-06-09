@@ -17,8 +17,8 @@ python3.11 -m ruff check .
 
 ## Install
 
-Symlink the package directory into Kalico/Klipper extras:
+Symlink the package directory into Kalico plugins:
 
 ```bash
-ln -s /path/to/heater_chamber/heater_chamber /path/to/kalico/klippy/extras/heater_chamber
+ln -s /path/to/heater_chamber/heater_chamber /path/to/kalico/klippy/plugins/heater_chamber
 ```
