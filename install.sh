@@ -46,8 +46,25 @@ resolve_config() {  # set HEATER_CHAMBER_PATH and MOONRAKER_CONFIG defaults
 }
 
 # ---- function stubs (implemented in later tasks) -------------------------
-classify_path() { :; }
-remove_safe_link() { :; }
+classify_path() {  # echoes: symlink | real | absent  (test -L before -e: dangling links)
+  local p=$1
+  if [ -L "$p" ]; then
+    echo symlink
+  elif [ -e "$p" ]; then
+    echo real
+  else
+    echo absent
+  fi
+}
+
+remove_safe_link() {  # status: 0=removed  1=absent  2=refused(real)  3=rm-failed
+  local p=$1
+  case "$(classify_path "$p")" in
+    symlink) if rm "$p"; then return 0; else return 3; fi ;;
+    absent)  return 1 ;;
+    real)    return 2 ;;
+  esac
+}
 json_get() { :; }
 fetch_printer_info() { :; }
 resolve_klipper_path() { :; }
