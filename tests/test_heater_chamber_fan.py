@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import klippy.extras.heater_chamber as heater_chamber
+import heater_chamber.controller as heater_chamber
 import pytest
 from tests.fakes import FakeConfig, FakeFanModule, FakePrinter, FakeSensorGeneric
 from tests.test_heater_chamber_init import base_values

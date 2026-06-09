@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from klippy.extras.heater_chamber import ConfigProxy
+from heater_chamber.config_proxy import ConfigProxy
 from tests.fakes import FakeConfig, FakeConfigError
 
 

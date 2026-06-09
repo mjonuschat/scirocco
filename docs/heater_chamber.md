@@ -4,6 +4,14 @@
 One config section owns the element sensor, chamber sensor, heater, and
 circulation fan.
 
+## Install
+
+Symlink the package directory into Kalico/Klipper extras:
+
+```bash
+ln -s /path/to/heater_chamber/heater_chamber /path/to/kalico/klippy/extras/heater_chamber
+```
+
 ## Instances
 
 The default instance is loaded from:
