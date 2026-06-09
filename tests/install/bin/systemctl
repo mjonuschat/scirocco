@@ -1,0 +1,14 @@
+#!/bin/bash
+# Stub systemctl. FAKE_KLIPPER_SERVICE=1 -> klipper unit "exists".
+case "$1" in
+  list-unit-files)
+    if [ "${FAKE_KLIPPER_SERVICE:-1}" = "1" ]; then
+      echo "klipper.service enabled enabled"
+      exit 0
+    fi
+    echo "0 unit files listed."
+    exit 0
+    ;;
+  restart) exit 0 ;;
+  *) exit 0 ;;
+esac

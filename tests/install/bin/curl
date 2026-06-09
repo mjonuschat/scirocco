@@ -1,0 +1,12 @@
+#!/bin/bash
+# Stub curl. Emits canned JSON by URL. FAKE_CURL_FAIL=1 -> network failure.
+[ "${FAKE_CURL_FAIL:-0}" = "1" ] && exit 7
+url="${!#}"   # last argument is the URL
+body=""
+case "$url" in
+  *"/printer/info"*)           body="${FAKE_INFO_JSON:-}" ;;
+  *"/printer/objects/query"*)  body="${FAKE_PRINT_JSON:-}" ;;
+esac
+[ -z "$body" ] && body='{}'
+printf '%s' "$body"
+exit 0

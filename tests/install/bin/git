@@ -1,0 +1,12 @@
+#!/bin/bash
+# Stub git. `git clone URL DEST` materializes a minimal checkout.
+# FAKE_GIT_FAIL=1 -> clone fails.
+if [ "$1" = "clone" ]; then
+  [ "${FAKE_GIT_FAIL:-0}" = "1" ] && exit 1
+  dest="${!#}"
+  mkdir -p "${dest}/heater_chamber"
+  : > "${dest}/heater_chamber/__init__.py"
+  : > "${dest}/install.sh"
+  exit 0
+fi
+exit 0

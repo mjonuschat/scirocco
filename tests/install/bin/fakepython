@@ -1,0 +1,10 @@
+#!/bin/bash
+# Stub interpreter. FAKE_PY_MAJOR / FAKE_PY_MINOR control reported version.
+# Only handles the two -c programs the installer runs.
+maj="${FAKE_PY_MAJOR:-3}"; min="${FAKE_PY_MINOR:-13}"
+prog="$2"
+case "$prog" in
+  *"version_info[0]*100+sys.version_info[1]"*) echo $(( maj * 100 + min )) ;;
+  *"python_version"*) echo "${maj}.${min}.0" ;;
+  *) exit 0 ;;
+esac
