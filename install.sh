@@ -107,8 +107,53 @@ check_download() {
   fi
   die "${HEATER_CHAMBER_PATH} exists but is not a heater_chamber checkout; move it aside or set HEATER_CHAMBER_PATH"
 }
-link_extension() { :; }
-unlink_extension() { :; }
+plugins_link()  { printf '%s\n' "${KLIPPER_PATH}/klippy/plugins/heater_chamber"; }
+extras_link()   { printf '%s\n' "${KLIPPER_PATH}/klippy/extras/heater_chamber"; }
+
+link_extension() {
+  local selected other
+  if [ -d "${KLIPPER_PATH}/klippy/plugins" ]; then
+    selected="$(plugins_link)"; other="$(extras_link)"
+  else
+    selected="$(extras_link)"; other="$(plugins_link)"
+  fi
+
+  # Phase 1: classify both read-only; abort before any change if either is real.
+  local p
+  for p in "${selected}" "${other}"; do
+    if [ "$(classify_path "${p}")" = "real" ]; then
+      die "${p} is not a symlink (manually managed?); refusing to overwrite."
+    fi
+  done
+
+  # Phase 2: both are symlink-or-absent now; clear and create.
+  # `if ...; then ... else rc=$?` keeps the capture safe under `set -e`.
+  local rc
+  for p in "${selected}" "${other}"; do
+    if remove_safe_link "${p}"; then rc=0; else rc=$?; fi
+    case "${rc}" in
+      0|1) : ;;  # removed or absent — fine
+      2)   die "${p} is not a symlink (manually managed?); refusing to overwrite." ;;
+      *)   die "Failed to remove existing symlink ${p}" ;;
+    esac
+  done
+  ln -s "${HEATER_CHAMBER_PATH}/heater_chamber" "${selected}"
+  log "[INSTALL] Linked ${selected}"
+}
+
+unlink_extension() {
+  local p rc
+  for p in "$(plugins_link)" "$(extras_link)"; do
+    if remove_safe_link "${p}"; then rc=0; else rc=$?; fi
+    case "${rc}" in
+      0) log "[UNINSTALL] Removed ${p}" ;;
+      1) : ;;  # absent — nothing to report
+      2) log "[SKIP] ${p} is not a symlink; leaving it." ;;
+      *) log "[WARN] Failed to remove symlink ${p}" ;;
+    esac
+  done
+  return 0
+}
 add_updater() { :; }
 remove_updater() { :; }
 check_no_active_print() {  # 0 = safe to restart, 1 = skip (active or unknown)
