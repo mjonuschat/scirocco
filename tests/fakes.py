@@ -134,10 +134,10 @@ class FakeFan:
     def __init__(self, config: Any, default_shutdown_speed: float = 0.0) -> None:
         self.config = config
         self.default_shutdown_speed = default_shutdown_speed
-        self.speed_calls: list[tuple[float, float]] = []
+        self.speed_calls: list[tuple[float, float | None]] = []
 
-    def set_speed(self, eventtime: float, speed: float) -> None:
-        self.speed_calls.append((eventtime, speed))
+    def set_speed(self, value: float, print_time: float | None = None) -> None:
+        self.speed_calls.append((value, print_time))
 
 
 class FakeFanModule:
@@ -159,6 +159,7 @@ class FakeGCode:
 class FakeReactor:
     def __init__(self) -> None:
         self.registered_timers: list[Callable[[float], float]] = []
+        self.registered_waketimes: list[float] = []
         self._time = 100.0
 
     def monotonic(self) -> float:
@@ -168,6 +169,7 @@ class FakeReactor:
         self, callback: Callable[[float], float], _waketime: float
     ) -> Callable[[float], float]:
         self.registered_timers.append(callback)
+        self.registered_waketimes.append(_waketime)
         return callback
 
 

@@ -65,8 +65,15 @@ fan_pin: PD13
 #fan_heater_temp: 50.0
 #fan_shutdown_speed: 1.0
 #fan_kick_start_time:
-#fan_off_below:
+#fan_min_power:
+#fan_max_power:
 #fan_cycle_time:
+#fan_hardware_pwm:
+#fan_enable_pin:
+#fan_initial_speed:
+#fan_tachometer_pin:
+#fan_tachometer_ppr:
+#fan_tachometer_poll_interval:
 ```
 
 ## G-codes

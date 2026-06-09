@@ -240,6 +240,7 @@ except ImportError:
     PrinterSensorGeneric = None  # type: ignore[assignment]
 
 
+PIN_MIN_TIME = 0.100
 FAN_UPDATE_TIME = 1.0
 DEFAULT_FAN_SPEED = 1.0
 DEFAULT_FAN_HEATER_TEMP = 50.0
@@ -264,8 +265,16 @@ FAN_KEY_MAP = {
     "pin": "fan_pin",
     "shutdown_speed": "fan_shutdown_speed",
     "kick_start_time": "fan_kick_start_time",
+    "min_power": "fan_min_power",
     "off_below": "fan_off_below",
+    "max_power": "fan_max_power",
     "cycle_time": "fan_cycle_time",
+    "hardware_pwm": "fan_hardware_pwm",
+    "enable_pin": "fan_enable_pin",
+    "initial_speed": "fan_initial_speed",
+    "tachometer_pin": "fan_tachometer_pin",
+    "tachometer_ppr": "fan_tachometer_ppr",
+    "tachometer_poll_interval": "fan_tachometer_poll_interval",
 }
 
 
@@ -320,6 +329,7 @@ class PrinterHeaterChamber:
         self.fan = self._create_fan(fan_module)
         self.fan_speed = config.getfloat("fan_speed", DEFAULT_FAN_SPEED, minval=0.0, maxval=1.0)
         self.fan_heater_temp = config.getfloat("fan_heater_temp", DEFAULT_FAN_HEATER_TEMP)
+        self.last_fan_speed = 0.0
         self._fan_timer = None
 
         self.printer.register_event_handler("klippy:ready", self._handle_ready)
@@ -355,13 +365,17 @@ class PrinterHeaterChamber:
 
     def _handle_ready(self) -> None:
         reactor = self.printer.get_reactor()
-        self._fan_timer = reactor.register_timer(self._fan_callback, reactor.monotonic())
+        self._fan_timer = reactor.register_timer(
+            self._fan_callback, reactor.monotonic() + PIN_MIN_TIME
+        )
 
     def _fan_callback(self, eventtime: float) -> float:
         element_temp = _temperature_from_result(self.element_sensor.get_temp(eventtime))
         target = _target_from_result(self.heater.get_temp(eventtime))
         fan_speed = self.fan_speed if target > 0.0 or element_temp >= self.fan_heater_temp else 0.0
-        self.fan.set_speed(eventtime, fan_speed)
+        if fan_speed != self.last_fan_speed:
+            self.last_fan_speed = fan_speed
+            self.fan.set_speed(fan_speed)
         return eventtime + FAN_UPDATE_TIME
 
     def cmd_M141(self, gcmd: Any) -> None:

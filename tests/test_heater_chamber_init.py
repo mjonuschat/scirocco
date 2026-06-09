@@ -84,3 +84,28 @@ def test_control_must_be_dual_loop_pid() -> None:
 
     with pytest.raises(FakeConfigError, match="control: dual_loop_pid"):
         heater_chamber.load_config(config)
+
+
+def test_fan_proxy_maps_prefixed_fan_options() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(
+        values=base_values()
+        | {
+            "fan_min_power": "0.2",
+            "fan_max_power": "0.9",
+            "fan_hardware_pwm": "true",
+            "fan_enable_pin": "PD14",
+            "fan_initial_speed": "0.4",
+            "fan_tachometer_pin": "PD15",
+        },
+        printer=printer,
+    )
+
+    chamber = heater_chamber.load_config(config)
+
+    assert chamber.fan.config.getfloat("min_power") == 0.2
+    assert chamber.fan.config.getfloat("max_power") == 0.9
+    assert chamber.fan.config.getboolean("hardware_pwm") is True
+    assert chamber.fan.config.get("enable_pin") == "PD14"
+    assert chamber.fan.config.getfloat("initial_speed") == 0.4
+    assert chamber.fan.config.get("tachometer_pin") == "PD15"

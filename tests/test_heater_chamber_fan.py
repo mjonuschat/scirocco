@@ -20,6 +20,7 @@ def test_ready_event_registers_fan_timer() -> None:
     chamber._handle_ready()
 
     assert printer.reactor.registered_timers == [chamber._fan_callback]
+    assert printer.reactor.registered_waketimes == [100.1]
 
 
 def test_fan_turns_on_when_heater_has_target() -> None:
@@ -31,7 +32,7 @@ def test_fan_turns_on_when_heater_has_target() -> None:
 
     next_time = chamber._fan_callback(12.0)
 
-    assert chamber.fan.speed_calls == [(12.0, 0.65)]
+    assert chamber.fan.speed_calls == [(0.65, None)]
     assert next_time == 13.0
 
 
@@ -44,16 +45,31 @@ def test_fan_turns_on_when_element_temperature_is_above_threshold() -> None:
 
     chamber._fan_callback(20.0)
 
-    assert chamber.fan.speed_calls == [(20.0, 1.0)]
+    assert chamber.fan.speed_calls == [(1.0, None)]
 
 
-def test_fan_turns_off_when_idle_and_element_is_below_threshold() -> None:
+def test_fan_turns_off_after_heater_becomes_idle_and_element_is_below_threshold() -> None:
     printer = FakePrinter()
     config = FakeConfig(values=base_values() | {"fan_heater_temp": "50.0"}, printer=printer)
     chamber = heater_chamber.load_config(config)
+    chamber.heater.target = 55.0
+    chamber._fan_callback(29.0)
+
     chamber.heater.target = 0.0
     chamber.element_sensor.temperature = 49.0
 
     chamber._fan_callback(30.0)
 
-    assert chamber.fan.speed_calls == [(30.0, 0.0)]
+    assert chamber.fan.speed_calls == [(1.0, None), (0.0, None)]
+
+
+def test_fan_does_not_requeue_unchanged_speed() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values() | {"fan_speed": "0.65"}, printer=printer)
+    chamber = heater_chamber.load_config(config)
+    chamber.heater.target = 45.0
+
+    chamber._fan_callback(12.0)
+    chamber._fan_callback(13.0)
+
+    assert chamber.fan.speed_calls == [(0.65, None)]
