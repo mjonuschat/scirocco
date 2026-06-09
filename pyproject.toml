@@ -1,0 +1,25 @@
+[project]
+name = "heater-chamber"
+version = "0.1.0"
+description = "Kalico active chamber heater extension"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0",
+  "ruff>=0.11",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["klippy", "tests"]
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "SIM", "UP"]
