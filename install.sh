@@ -154,8 +154,43 @@ unlink_extension() {
   done
   return 0
 }
-add_updater() { :; }
-remove_updater() { :; }
+add_updater() {
+  if [ ! -f "${MOONRAKER_CONFIG}" ]; then
+    log "[WARN] ${MOONRAKER_CONFIG} not found; skipping update_manager block."
+    return 0
+  fi
+  if grep -q "update_manager heater_chamber" "${MOONRAKER_CONFIG}"; then
+    log "[UPDATER] update_manager block already present; skipping."
+    return 0
+  fi
+  local path_display="${HEATER_CHAMBER_PATH}"
+  case "${path_display}" in
+    "${HOME}"/*) path_display="~${path_display#${HOME}}" ;;
+  esac
+  {
+    printf '\n%s\n' "${SENTINEL_START}"
+    printf '[update_manager heater_chamber]\n'
+    printf 'type: git_repo\n'
+    printf 'path: %s\n' "${path_display}"
+    printf 'origin: %s\n' "${REPO_URL}"
+    printf 'managed_services: klipper\n'
+    printf 'primary_branch: main\n'
+    printf '%s\n' "${SENTINEL_END}"
+  } >> "${MOONRAKER_CONFIG}"
+  log "[UPDATER] Added update_manager block to ${MOONRAKER_CONFIG}"
+}
+
+remove_updater() {
+  [ -f "${MOONRAKER_CONFIG}" ] || return 0
+  local tmp; tmp="$(mktemp "${TMPDIR:-/tmp}/hc.XXXXXX")"  # explicit template: portable across GNU/BSD mktemp
+  awk -v s="${SENTINEL_START}" -v e="${SENTINEL_END}" '
+    $0==s { skip=1 }
+    !skip { print }
+    $0==e { skip=0 }
+  ' "${MOONRAKER_CONFIG}" > "${tmp}"
+  mv "${tmp}" "${MOONRAKER_CONFIG}"
+  log "[UPDATER] Removed update_manager block from ${MOONRAKER_CONFIG}"
+}
 check_no_active_print() {  # 0 = safe to restart, 1 = skip (active or unknown)
   local json state
   json="$(curl -fsS --max-time 8 "${MOONRAKER_HOST}/printer/objects/query?print_stats" 2>/dev/null)" || return 1
