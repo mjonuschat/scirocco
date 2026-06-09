@@ -282,6 +282,18 @@ def _require_dependency(config: Any, dependency: Any, name: str) -> Any:
     return dependency
 
 
+def _temperature_from_result(result: Any) -> float:
+    if isinstance(result, tuple):
+        return float(result[0])
+    return float(result)
+
+
+def _target_from_result(result: Any) -> float:
+    if isinstance(result, tuple) and len(result) > 1:
+        return float(result[1])
+    return 0.0
+
+
 class PrinterHeaterChamber:
     def __init__(self, config: Any) -> None:
         self.config = config
@@ -338,6 +350,10 @@ class PrinterHeaterChamber:
         self._fan_timer = reactor.register_timer(self._fan_callback, reactor.monotonic())
 
     def _fan_callback(self, eventtime: float) -> float:
+        element_temp = _temperature_from_result(self.element_sensor.get_temp(eventtime))
+        target = _target_from_result(self.heater.get_temp(eventtime))
+        fan_speed = self.fan_speed if target > 0.0 or element_temp >= self.fan_heater_temp else 0.0
+        self.fan.set_speed(eventtime, fan_speed)
         return eventtime + FAN_UPDATE_TIME
 
 
