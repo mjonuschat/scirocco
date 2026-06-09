@@ -99,7 +99,15 @@ link_extension() { :; }
 unlink_extension() { :; }
 add_updater() { :; }
 remove_updater() { :; }
-check_no_active_print() { :; }
+check_no_active_print() {  # 0 = safe to restart, 1 = skip (active or unknown)
+  local json state
+  json="$(curl -fsS --max-time 8 "${MOONRAKER_HOST}/printer/objects/query?print_stats" 2>/dev/null)" || return 1
+  state="$(printf '%s' "${json}" | json_get result status print_stats state)"
+  case "${state}" in
+    standby|complete|cancelled|error) return 0 ;;
+    *) return 1 ;;  # printing, paused, unknown, or empty -> skip
+  esac
+}
 restart_klipper() { :; }
 
 main() {
