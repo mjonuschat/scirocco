@@ -108,9 +108,22 @@ class FakeHeater:
         self.config = config
         self.temperature = 25.0
         self.target = 0.0
+        self.power = 0.0
+        self.stats_calls: list[float] = []
 
     def get_temp(self, _eventtime: float) -> tuple[float, float]:
         return self.temperature, self.target
+
+    def stats(self, eventtime: float) -> tuple[bool, str]:
+        self.stats_calls.append(eventtime)
+        return bool(self.target), f"heater_chamber: target={self.target:.0f}"
+
+    def get_status(self, _eventtime: float) -> dict[str, float]:
+        return {
+            "temperature": self.temperature,
+            "target": self.target,
+            "power": self.power,
+        }
 
 
 class FakeHeaters:

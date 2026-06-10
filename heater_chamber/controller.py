@@ -164,6 +164,17 @@ class PrinterHeaterChamber:
             self.fan.set_speed(fan_speed)
         return eventtime + FAN_UPDATE_TIME
 
+    def get_status(self, eventtime: float) -> dict[str, Any]:
+        # Exposes the chamber heater under this section's object name so
+        # Moonraker/UI list it alongside other heaters and read its target.
+        return self.heater.get_status(eventtime)
+
+    def stats(self, eventtime: float) -> tuple[bool, str]:
+        # PrinterStats collects stats() from printer objects; Heater.stats is
+        # what advances the heater's verify_mainthread_time watchdog. Without
+        # delegating it the watchdog never arms and set_pwm pins output to 0.
+        return self.heater.stats(eventtime)
+
     def cmd_M141(self, gcmd: Any) -> None:
         target = gcmd.get_float("S", None)
         if target is None:

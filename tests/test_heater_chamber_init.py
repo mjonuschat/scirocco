@@ -136,6 +136,36 @@ def test_chamber_sensor_and_heater_proxy_map_prefixed_options() -> None:
     assert heater_config.getfloat("max_power") == 0.8
 
 
+def test_get_status_reports_heater_temperature_target_and_power() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values(), printer=printer)
+    chamber = heater_chamber.load_config(config)
+    chamber.heater.temperature = 48.0
+    chamber.heater.target = 55.0
+    chamber.heater.power = 0.7
+
+    assert chamber.get_status(123.0) == {
+        "temperature": 48.0,
+        "target": 55.0,
+        "power": 0.7,
+    }
+
+
+def test_stats_delegates_to_heater_so_pwm_watchdog_runs() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values(), printer=printer)
+    chamber = heater_chamber.load_config(config)
+    chamber.heater.target = 40.0
+
+    is_active, message = chamber.stats(456.0)
+
+    # PrinterStats only advances the heater's verify_mainthread_time watchdog
+    # by calling stats() on this object; without it set_pwm pins PWM to 0.
+    assert chamber.heater.stats_calls == [456.0]
+    assert is_active is True
+    assert message == "heater_chamber: target=40"
+
+
 def test_fan_proxy_maps_prefixed_fan_options() -> None:
     printer = FakePrinter()
     config = FakeConfig(
