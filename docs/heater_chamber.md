@@ -52,11 +52,15 @@ heater_sensor_type: Generic 3950
 heater_sensor_pin: PF4
 heater_min_temp: 0
 heater_max_temp: 150
+#heater_pullup_resistor: 4700
+#heater_inline_resistor: 0
 
 chamber_sensor_type: Generic 3950
 chamber_sensor_pin: PF5
 chamber_min_temp: 0
 chamber_max_temp: 80
+#chamber_pullup_resistor: 4700
+#chamber_inline_resistor: 0
 
 control: dual_loop_pid
 pid_Kp: 10.0
@@ -84,6 +88,35 @@ fan_pin: PD13
 #fan_tachometer_ppr:
 #fan_tachometer_poll_interval:
 ```
+
+## Sensor options
+
+Both sensors take the usual Kalico temperature options, prefixed by which
+sensor they configure. `heater_*` configures the element sensor (inner loop);
+`chamber_*` configures the chamber ambient sensor (outer loop):
+
+| Element sensor | Chamber sensor | Maps to |
+| --- | --- | --- |
+| `heater_pullup_resistor` | `chamber_pullup_resistor` | `pullup_resistor` |
+| `heater_inline_resistor` | `chamber_inline_resistor` | `inline_resistor` |
+| `heater_sensor_list` | `chamber_sensor_list` | `sensor_list` |
+| `heater_combination_method` | `chamber_combination_method` | `combination_method` |
+| `heater_maximum_deviation` | `chamber_maximum_deviation` | `maximum_deviation` |
+
+The last three enable `sensor_type: temperature_combined`. For example, to drive
+the chamber loop from the mean of two probes:
+
+```ini
+chamber_sensor_type: temperature_combined
+chamber_sensor_list: temperature_sensor left, temperature_sensor right
+chamber_combination_method: mean
+chamber_maximum_deviation: 5.0
+chamber_min_temp: 0
+chamber_max_temp: 80
+```
+
+`heater_max_power` caps the PWM duty on `heater_pin` (default `1.0`). The fan
+takes the matching `fan_max_power`.
 
 ## G-codes
 

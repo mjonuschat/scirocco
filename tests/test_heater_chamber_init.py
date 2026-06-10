@@ -86,6 +86,56 @@ def test_control_must_be_dual_loop_pid() -> None:
         heater_chamber.load_config(config)
 
 
+def test_element_sensor_proxy_maps_thermistor_and_combined_options() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(
+        values=base_values()
+        | {
+            "heater_pullup_resistor": "2200",
+            "heater_inline_resistor": "100",
+            "heater_sensor_list": "temperature_sensor a, temperature_sensor b",
+            "heater_combination_method": "mean",
+            "heater_maximum_deviation": "5",
+        },
+        printer=printer,
+    )
+
+    chamber = heater_chamber.load_config(config)
+
+    cfg = chamber.element_sensor.config
+    assert cfg.getfloat("pullup_resistor") == 2200.0
+    assert cfg.getfloat("inline_resistor") == 100.0
+    assert cfg.getlist("sensor_list") == ["temperature_sensor a", "temperature_sensor b"]
+    assert cfg.get("combination_method") == "mean"
+    assert cfg.getfloat("maximum_deviation") == 5.0
+
+
+def test_chamber_sensor_and_heater_proxy_map_prefixed_options() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(
+        values=base_values()
+        | {
+            "chamber_pullup_resistor": "2200",
+            "chamber_inline_resistor": "100",
+            "chamber_sensor_list": "temperature_sensor a, temperature_sensor b",
+            "chamber_combination_method": "max",
+            "chamber_maximum_deviation": "3",
+            "heater_max_power": "0.8",
+        },
+        printer=printer,
+    )
+
+    heater_chamber.load_config(config)
+
+    heater_config, _ = printer.heaters.setup_calls[0]
+    assert heater_config.getfloat("pullup_resistor") == 2200.0
+    assert heater_config.getfloat("inline_resistor") == 100.0
+    assert heater_config.getlist("sensor_list") == ["temperature_sensor a", "temperature_sensor b"]
+    assert heater_config.get("combination_method") == "max"
+    assert heater_config.getfloat("maximum_deviation") == 3.0
+    assert heater_config.getfloat("max_power") == 0.8
+
+
 def test_fan_proxy_maps_prefixed_fan_options() -> None:
     printer = FakePrinter()
     config = FakeConfig(

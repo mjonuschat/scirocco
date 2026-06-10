@@ -26,6 +26,11 @@ ELEMENT_SENSOR_KEY_MAP = {
     "sensor_pin": "heater_sensor_pin",
     "min_temp": "heater_min_temp",
     "max_temp": "heater_max_temp",
+    "pullup_resistor": "heater_pullup_resistor",
+    "inline_resistor": "heater_inline_resistor",
+    "sensor_list": "heater_sensor_list",
+    "combination_method": "heater_combination_method",
+    "maximum_deviation": "heater_maximum_deviation",
 }
 
 HEATER_KEY_MAP = {
@@ -34,6 +39,12 @@ HEATER_KEY_MAP = {
     "min_temp": "chamber_min_temp",
     "max_temp": "chamber_max_temp",
     "inner_max_temp": "heater_target_temp",
+    "max_power": "heater_max_power",
+    "pullup_resistor": "chamber_pullup_resistor",
+    "inline_resistor": "chamber_inline_resistor",
+    "sensor_list": "chamber_sensor_list",
+    "combination_method": "chamber_combination_method",
+    "maximum_deviation": "chamber_maximum_deviation",
 }
 
 FAN_KEY_MAP = {
