@@ -102,3 +102,18 @@ heating_gain: 0.1      # minimum degrees gained per check_gain_time
 
 Adjust `check_gain_time` to match how long your chamber actually takes to show
 measurable temperature rise after power-on.
+
+## Disclaimer
+
+This software controls real heating hardware. Improper configuration, electrical
+faults, or software bugs can cause fire, property damage, or injury.
+
+**Use entirely at your own risk.** The authors provide this software as-is,
+without warranty of any kind, express or implied. In no event shall the authors
+be liable for any damages — including but not limited to property damage, data
+loss, or personal injury — arising from the use or inability to use this
+software.
+
+You are responsible for ensuring your installation is electrically safe, thermally
+protected, and compliant with local regulations. Never leave an actively heated
+enclosure unattended without independent thermal protection.
