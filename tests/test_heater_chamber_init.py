@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import types
+
 import heater_chamber.controller as heater_chamber
 import pytest
 from tests.fakes import FakeConfig, FakeConfigError, FakeFanModule, FakePrinter, FakeSensorGeneric
@@ -60,6 +62,46 @@ def test_default_instance_creates_generated_sensor_heater_and_fan() -> None:
     assert chamber.fan_speed == 1.0
     assert chamber.fan_heater_temp == 50.0
     assert printer.event_handlers["klippy:ready"] == [chamber._handle_ready]
+
+
+def test_heater_proxy_serves_target_under_new_kalico_inner_target_temp(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Kalico (since PR #889) reads `inner_target_temp` and only falls back to
+    # the deprecated `inner_max_temp` with a deprecation warning. Serving the
+    # value under the new name keeps Kalico off the deprecated branch entirely.
+    monkeypatch.setattr(
+        heater_chamber,
+        "heaters",
+        types.SimpleNamespace(DUAL_LOOP_PID_INNER_TARGET_OPTION="inner_target_temp"),
+        raising=False,
+    )
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values(), printer=printer)
+
+    heater_chamber.load_config(config)
+
+    heater_config, _ = printer.heaters.setup_calls[0]
+    assert heater_config.getfloat("inner_target_temp") == 120.0
+    # The deprecated alias must NOT resolve to the value, otherwise Kalico sees
+    # both options set (error) or hits its deprecation warning.
+    with pytest.raises(FakeConfigError, match="inner_max_temp"):
+        heater_config.getfloat("inner_max_temp")
+
+
+def test_heater_proxy_serves_target_under_inner_max_temp_on_old_kalico(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Older Kalico has no inner-target rename constant and reads `inner_max_temp`
+    # directly, so the proxy must keep serving the value under that name.
+    monkeypatch.setattr(heater_chamber, "heaters", types.SimpleNamespace(), raising=False)
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values(), printer=printer)
+
+    heater_chamber.load_config(config)
+
+    heater_config, _ = printer.heaters.setup_calls[0]
+    assert heater_config.getfloat("inner_max_temp") == 120.0
 
 
 def test_named_instance_uses_suffix_name_and_no_default_gcode_id() -> None:

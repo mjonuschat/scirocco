@@ -14,6 +14,11 @@ try:
 except ImportError:
     PrinterSensorGeneric = None  # type: ignore[assignment]
 
+try:
+    from klippy.extras import heaters
+except ImportError:
+    heaters = None  # type: ignore[assignment]
+
 
 PIN_MIN_TIME = 0.100
 FAN_UPDATE_TIME = 1.0
@@ -38,7 +43,6 @@ HEATER_KEY_MAP = {
     "sensor_pin": "chamber_sensor_pin",
     "min_temp": "chamber_min_temp",
     "max_temp": "chamber_max_temp",
-    "inner_max_temp": "heater_target_temp",
     "max_power": "heater_max_power",
     "pullup_resistor": "chamber_pullup_resistor",
     "inline_resistor": "chamber_inline_resistor",
@@ -46,6 +50,23 @@ HEATER_KEY_MAP = {
     "combination_method": "chamber_combination_method",
     "maximum_deviation": "chamber_maximum_deviation",
 }
+
+# This plugin's user-facing option holding the dual-loop inner target temperature.
+HEATER_TARGET_TEMP_KEY = "heater_target_temp"
+
+# Kalico PR #889 renamed the heater's inner-loop target option to
+# `inner_target_temp` and deprecated `inner_max_temp`. Older releases only know
+# `inner_max_temp`. We expose the value under whichever name the installed
+# Kalico treats as current so neither version emits a deprecation warning.
+DEPRECATED_INNER_TARGET_OPTION = "inner_max_temp"
+
+
+def _inner_target_option() -> str:
+    option = getattr(heaters, "DUAL_LOOP_PID_INNER_TARGET_OPTION", None)
+    if isinstance(option, str) and option:
+        return option
+    return DEPRECATED_INNER_TARGET_OPTION
+
 
 FAN_KEY_MAP = {
     "pin": "fan_pin",
@@ -136,9 +157,10 @@ class PrinterHeaterChamber:
         return element_sensor
 
     def _create_heater(self) -> Any:
+        key_map = {**HEATER_KEY_MAP, _inner_target_option(): HEATER_TARGET_TEMP_KEY}
         heater_proxy = ConfigProxy(
             self.config,
-            key_map=HEATER_KEY_MAP,
+            key_map=key_map,
             overrides={"inner_sensor_name": self.element_sensor_name},
             name_override=self.config_name,
         )
