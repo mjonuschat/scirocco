@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import heater_chamber.controller as heater_chamber
 import pytest
-from tests.fakes import FakeConfig, FakeFanModule, FakePrinter, FakeSensorGeneric
+from tests.fakes import FakeConfig, FakeFanModule, FakeGCmd, FakePrinter, FakeSensorGeneric
 from tests.test_heater_chamber_init import base_values
 
 
@@ -73,3 +73,96 @@ def test_fan_does_not_requeue_unchanged_speed() -> None:
     chamber._fan_callback(13.0)
 
     assert chamber.fan.speed_calls == [(0.65, None)]
+
+
+def test_fan_speed_control_is_not_registered_by_default() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values(), printer=printer)
+
+    heater_chamber.load_config(config)
+
+    assert ("SET_FAN_SPEED", "FAN", "heater_chamber") not in printer.gcode.mux_commands
+
+
+def test_fan_speed_control_registers_opted_in_default_instance() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values() | {"fan_speed_control": "true"}, printer=printer)
+
+    chamber = heater_chamber.load_config(config)
+
+    assert printer.gcode.mux_commands[("SET_FAN_SPEED", "FAN", "heater_chamber")] == (
+        chamber.cmd_SET_FAN_SPEED
+    )
+
+
+def test_fan_speed_control_registers_opted_in_named_instance() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(
+        name="heater_chamber rear",
+        values=base_values() | {"fan_speed_control": "true"},
+        printer=printer,
+    )
+
+    chamber = heater_chamber.load_config_prefix(config)
+
+    assert printer.gcode.mux_commands[("SET_FAN_SPEED", "FAN", "rear")] == (
+        chamber.cmd_SET_FAN_SPEED
+    )
+
+
+def test_set_fan_speed_updates_operating_speed_without_forcing_idle_fan() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values() | {"fan_speed_control": "true"}, printer=printer)
+    chamber = heater_chamber.load_config(config)
+
+    chamber.cmd_SET_FAN_SPEED(FakeGCmd({"SPEED": "0.45"}))
+
+    assert chamber.fan_speed == 0.45
+    assert chamber.fan.speed_calls == []
+
+
+def test_set_fan_speed_applies_immediately_when_heater_is_active() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values() | {"fan_speed_control": "true"}, printer=printer)
+    chamber = heater_chamber.load_config(config)
+    chamber.heater.target = 45.0
+
+    chamber.cmd_SET_FAN_SPEED(FakeGCmd({"SPEED": "0.45"}))
+
+    assert chamber.fan_speed == 0.45
+    assert chamber.fan.speed_calls == [(0.45, "gcode")]
+
+
+def test_set_fan_speed_zero_warns_when_heater_is_active() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(values=base_values() | {"fan_speed_control": "true"}, printer=printer)
+    chamber = heater_chamber.load_config(config)
+    chamber.heater.target = 45.0
+    gcmd = FakeGCmd({"SPEED": "0"})
+
+    chamber.cmd_SET_FAN_SPEED(gcmd)
+
+    assert chamber.fan_speed == 0.0
+    assert chamber.fan.speed_calls == [(0.0, "gcode")]
+    assert gcmd.responses == [
+        "Warning: heater_chamber fan speed set to 0 while chamber fan should be active"
+    ]
+
+
+def test_set_fan_speed_zero_warns_when_element_is_above_enable_temperature() -> None:
+    printer = FakePrinter()
+    config = FakeConfig(
+        values=base_values() | {"fan_speed_control": "true", "fan_heater_temp": "50.0"},
+        printer=printer,
+    )
+    chamber = heater_chamber.load_config(config)
+    chamber.element_sensor.temperature = 51.0
+    gcmd = FakeGCmd({"SPEED": "0"})
+
+    chamber.cmd_SET_FAN_SPEED(gcmd)
+
+    assert chamber.fan_speed == 0.0
+    assert chamber.fan.speed_calls == [(0.0, "gcode")]
+    assert gcmd.responses == [
+        "Warning: heater_chamber fan speed set to 0 while chamber fan should be active"
+    ]

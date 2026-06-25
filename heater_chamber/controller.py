@@ -25,6 +25,7 @@ FAN_UPDATE_TIME = 1.0
 DEFAULT_FAN_SPEED = 1.0
 DEFAULT_FAN_HEATER_TEMP = 50.0
 DEFAULT_FAN_SHUTDOWN_SPEED = 1.0
+DEFAULT_FAN_SPEED_CONTROL = False
 
 ELEMENT_SENSOR_KEY_MAP = {
     "sensor_type": "heater_sensor_type",
@@ -115,6 +116,8 @@ def _format_temperature(value: float) -> str:
 
 
 class PrinterHeaterChamber:
+    cmd_SET_FAN_SPEED_help = "Sets the operating speed of a chamber fan"
+
     def __init__(self, config: Any) -> None:
         self.config = config
         self.printer = config.get_printer()
@@ -136,11 +139,20 @@ class PrinterHeaterChamber:
         self.fan = self._create_fan(fan_module)
         self.fan_speed = config.getfloat("fan_speed", DEFAULT_FAN_SPEED, minval=0.0, maxval=1.0)
         self.fan_heater_temp = config.getfloat("fan_heater_temp", DEFAULT_FAN_HEATER_TEMP)
+        self.fan_speed_control = config.getboolean("fan_speed_control", DEFAULT_FAN_SPEED_CONTROL)
         self.last_fan_speed = 0.0
         self._fan_timer = None
 
         self.printer.register_event_handler("klippy:ready", self._handle_ready)
         self.gcode = self.printer.lookup_object("gcode")
+        if self.fan_speed_control:
+            self.gcode.register_mux_command(
+                "SET_FAN_SPEED",
+                "FAN",
+                self.name,
+                self.cmd_SET_FAN_SPEED,
+                desc=self.cmd_SET_FAN_SPEED_help,
+            )
         if self.is_default:
             self.gcode.register_command("M141", self.cmd_M141)
             self.gcode.register_command("M191", self.cmd_M191)
@@ -178,13 +190,16 @@ class PrinterHeaterChamber:
         )
 
     def _fan_callback(self, eventtime: float) -> float:
-        element_temp = _temperature_from_result(self.element_sensor.get_temp(eventtime))
-        target = _target_from_result(self.heater.get_temp(eventtime))
-        fan_speed = self.fan_speed if target > 0.0 or element_temp >= self.fan_heater_temp else 0.0
+        fan_speed = self.fan_speed if self._fan_should_be_active(eventtime) else 0.0
         if fan_speed != self.last_fan_speed:
             self.last_fan_speed = fan_speed
             self.fan.set_speed(fan_speed)
         return eventtime + FAN_UPDATE_TIME
+
+    def _fan_should_be_active(self, eventtime: float) -> bool:
+        element_temp = _temperature_from_result(self.element_sensor.get_temp(eventtime))
+        target = _target_from_result(self.heater.get_temp(eventtime))
+        return target > 0.0 or element_temp >= self.fan_heater_temp
 
     def get_status(self, eventtime: float) -> dict[str, Any]:
         # Exposes the chamber heater under this section's object name so
@@ -217,6 +232,19 @@ class PrinterHeaterChamber:
             self._temperature_wait(minimum=target)
         elif wait_for_cooling and current > target:
             self._temperature_wait(maximum=target)
+
+    def cmd_SET_FAN_SPEED(self, gcmd: Any) -> None:
+        speed = gcmd.get_float("SPEED", minval=0.0, maxval=1.0)
+        self.fan_speed = speed
+        eventtime = self.printer.get_reactor().monotonic()
+        if not self._fan_should_be_active(eventtime):
+            return
+        if speed == 0.0:
+            gcmd.respond_info(
+                f"Warning: {self.name} fan speed set to 0 while chamber fan should be active"
+            )
+        self.last_fan_speed = speed
+        self.fan.set_speed_from_command(speed)
 
     def _set_temperature(self, target: float) -> None:
         self.pheaters.set_temperature(self.heater, target, wait=False)

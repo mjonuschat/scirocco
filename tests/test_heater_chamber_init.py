@@ -61,6 +61,7 @@ def test_default_instance_creates_generated_sensor_heater_and_fan() -> None:
     assert chamber.fan.default_shutdown_speed == 1.0
     assert chamber.fan_speed == 1.0
     assert chamber.fan_heater_temp == 50.0
+    assert chamber.fan_speed_control is False
     assert printer.event_handlers["klippy:ready"] == [chamber._handle_ready]
 
 

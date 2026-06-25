@@ -152,6 +152,9 @@ class FakeFan:
     def set_speed(self, value: float, print_time: float | None = None) -> None:
         self.speed_calls.append((value, print_time))
 
+    def set_speed_from_command(self, value: float) -> None:
+        self.speed_calls.append((value, "gcode"))
+
 
 class FakeFanModule:
     Fan = FakeFan
@@ -160,10 +163,21 @@ class FakeFanModule:
 class FakeGCode:
     def __init__(self) -> None:
         self.commands: dict[str, Callable[[Any], None]] = {}
+        self.mux_commands: dict[tuple[str, str, str | None], Callable[[Any], None]] = {}
         self.scripts: list[str] = []
 
     def register_command(self, name: str, callback: Callable[[Any], None]) -> None:
         self.commands[name] = callback
+
+    def register_mux_command(
+        self,
+        name: str,
+        key: str,
+        value: str | None,
+        callback: Callable[[Any], None],
+        desc: str | None = None,
+    ) -> None:
+        self.mux_commands[(name, key, value)] = callback
 
     def run_script_from_command(self, command: str) -> None:
         self.scripts.append(command)
@@ -219,8 +233,12 @@ class FakePrinter:
 class FakeGCmd:
     def __init__(self, params: Mapping[str, Any] | None = None) -> None:
         self.params = dict(params or {})
+        self.responses: list[str] = []
 
     def get_float(self, name: str, default: Any = None, **_: Any) -> float | None:
         if name not in self.params:
             return default
         return float(self.params[name])
+
+    def respond_info(self, message: str, log: bool = True) -> None:
+        self.responses.append(message)

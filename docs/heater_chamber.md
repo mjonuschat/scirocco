@@ -75,6 +75,7 @@ heater_target_temp: 120.0
 
 fan_pin: PD13
 #fan_speed: 1.0
+#fan_speed_control: false
 #fan_heater_temp: 50.0
 #fan_shutdown_speed: 1.0
 #fan_kick_start_time:
@@ -118,6 +119,14 @@ chamber_max_temp: 80
 `heater_max_power` caps the PWM duty on `heater_pin` (default `1.0`). The fan
 takes the matching `fan_max_power`.
 
+`fan_speed` sets the operating speed used while the chamber fan is active
+(default `1.0`). The fan is active while the chamber heater has a target, or
+while the heater element sensor is at or above `fan_heater_temp`.
+
+Set `fan_speed_control: true` to opt an instance into Klipper's `SET_FAN_SPEED`
+mux command. This changes the operating speed; the automatic active/idle logic
+still decides whether the fan output should be that speed or off.
+
 ## G-codes
 
 ```gcode
@@ -138,3 +147,17 @@ M191 R55
 
 Sets the chamber target to 55 C and waits for heating or cooling. If both `S`
 and `R` are present, `R` takes precedence.
+
+```gcode
+SET_FAN_SPEED FAN=heater_chamber SPEED=0.65
+```
+
+When `fan_speed_control: true` is set, changes the default instance's chamber
+fan operating speed to 65%. For named instances, use the instance suffix:
+
+```gcode
+SET_FAN_SPEED FAN=rear SPEED=0.65
+```
+
+If `SPEED=0` is set while the chamber fan should be active, the command is
+accepted and a warning is printed to the console.

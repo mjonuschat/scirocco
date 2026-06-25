@@ -21,6 +21,7 @@ chamber_min_temp: 0
 chamber_max_temp: 80
 
 fan_pin: <CHAMBER_HEATER_FAN>
+# fan_speed_control: true          # opt in to SET_FAN_SPEED FAN=heater_chamber
 
 control: dual_loop_pid
 
